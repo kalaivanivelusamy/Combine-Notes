@@ -6,12 +6,18 @@
 //
 
 import XCTest
+import Combine
+
 @testable import Combine_Notes
 
 class Combine_NotesTests: XCTestCase {
+    
+    let testUrlString = "https://jsonplaceholder.typicode.com/todos/1"
 
+    var testURL: URL?
+    
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        self.testURL = URL(string: testUrlString)
     }
 
     override func tearDownWithError() throws {
@@ -28,6 +34,27 @@ class Combine_NotesTests: XCTestCase {
         self.measure {
             // Put the code you want to measure the time of here.
         }
+    }
+    
+    func testDataTaskPublisher() {
+        
+        let expectation = XCTestExpectation(description: "Fetching from url \(String(describing: testUrlString))")
+        
+        let remoteDataPublisher = URLSession.shared.dataTaskPublisher(for: self.testURL!)
+            .sink(receiveCompletion: { compln in
+                switch compln {
+                    case .finished:
+                        expectation.fulfill()
+                    case .failure:
+                        XCTFail()
+                }
+                
+            }, receiveValue: { (data,response) in
+                XCTAssertNotNil(data)
+            })
+    
+        XCTAssertNotNil(remoteDataPublisher)
+        wait(for: [expectation], timeout: 5.0)
     }
 
 }
