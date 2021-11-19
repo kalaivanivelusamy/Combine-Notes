@@ -16,8 +16,25 @@ class Combine_NotesTests: XCTestCase {
 
     var testURL: URL?
     
+    var myBackgroundQueue: DispatchQueue?
+
+    
+    fileprivate struct PostmanEchoTimeStampCheckResponse: Decodable, Hashable {
+        let valid: Bool
+    }
+    
+    fileprivate struct TodoTask: Decodable,Hashable {
+        let userId: Int
+        let id: Int
+        let title: String
+        let completed: Bool
+    }
+    
+    
     override func setUpWithError() throws {
         self.testURL = URL(string: testUrlString)
+        self.myBackgroundQueue = DispatchQueue(label: "UsingCombineNotes")
+
     }
 
     override func tearDownWithError() throws {
@@ -55,6 +72,37 @@ class Combine_NotesTests: XCTestCase {
     
         XCTAssertNotNil(remoteDataPublisher)
         wait(for: [expectation], timeout: 5.0)
+    }
+    
+    func testDataDecodePipeline() {
+        let expectation = XCTestExpectation(description: testUrlString)
+        
+        let dataPublisher = URLSession.shared.dataTaskPublisher(for: testURL!)
+            .map{$0.data}
+            .decode(type: TodoTask.self, decoder: JSONDecoder())
+            .subscribe(on: self.myBackgroundQueue!)
+            .eraseToAnyPublisher()
+        
+        XCTAssertNotNil(dataPublisher)
+        
+        let cancellable = dataPublisher.sink(receiveCompletion: { compln in
+            print(".sink() received the completion", String(describing: compln))
+            switch compln {
+                case .finished:
+                    expectation.fulfill()
+                case .failure:
+                    XCTFail()
+            }
+            
+        }, receiveValue: { data in
+            XCTAssertNotNil(data)
+            print(".sink received some value: \(data)")
+            
+        })
+        
+        wait(for: [expectation], timeout: 5.0)
+        XCTAssertNotNil(cancellable)
+        
     }
 
 }
