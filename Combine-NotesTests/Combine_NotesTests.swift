@@ -104,5 +104,35 @@ class Combine_NotesTests: XCTestCase {
         XCTAssertNotNil(cancellable)
         
     }
+    
+    func testFailingURLDecodePipeline_URLError() {
+        let myURL = URL(string: "https://urldonoexist.com")
+        let expectation = XCTestExpectation(description: "Download from \(String(describing: myURL))")
+        
+        let taskPub = URLSession.shared.dataTaskPublisher(for: myURL!)
+            .map {$0.data}
+            .decode(type: TodoTask.self, decoder: JSONDecoder())
+            .subscribe(on: self.myBackgroundQueue!)
+            .eraseToAnyPublisher()
+        
+        XCTAssertNotNil(taskPub)
+
+        let cancellable = taskPub.sink(receiveCompletion: { compln in
+            switch compln {
+                case .finished:
+                    XCTFail()
+                case .failure:
+                    expectation.fulfill()
+            }
+            
+        }, receiveValue: { vsl in
+            XCTFail("should not have received value with the failed url")
+            print("sink received some val \(vsl)")
+        })
+        
+        XCTAssertNotNil(cancellable)
+
+        wait(for: [expectation], timeout: 5.0)
+    }
 
 }
