@@ -12,22 +12,22 @@ import Combine
 
 class Combine_NotesTests: XCTestCase {
     
-    let testUrlString = "https://jsonplaceholder.typicode.com/todos/1"
+    let testUrlString = "https://jsonplaceholder.typicode.com/todos/10"
 
     var testURL: URL?
     
     var myBackgroundQueue: DispatchQueue?
 
     
-    fileprivate struct PostmanEchoTimeStampCheckResponse: Decodable, Hashable {
-        let valid: Bool
-    }
-    
     fileprivate struct TodoTask: Decodable,Hashable {
         let userId: Int
         let id: Int
         let title: String
         let completed: Bool
+    }
+    
+    enum TestFailureCondition: Error {
+        case invalidServerResponse
     }
     
     
@@ -131,8 +131,41 @@ class Combine_NotesTests: XCTestCase {
         })
         
         XCTAssertNotNil(cancellable)
-
         wait(for: [expectation], timeout: 5.0)
+    }
+    
+    func testDataTaskPublisherWithTryMap() {
+        
+        let expectation = XCTestExpectation(description: "Download from \(testUrlString)")
+        
+        let taskpub = URLSession.shared.dataTaskPublisher(for: self.testURL!)
+            .tryMap { data,response -> Data in
+                guard let httpResponse = response as? HTTPURLResponse,httpResponse.statusCode == 200 else {
+                    throw TestFailureCondition.invalidServerResponse
+                }
+                return data
+            }
+            .decode(type: TodoTask.self, decoder: JSONDecoder())
+            .subscribe(on: self.myBackgroundQueue!)
+            .eraseToAnyPublisher()
+        
+        XCTAssertNotNil(taskpub)
+
+        let cancellable = taskpub.sink(receiveCompletion: { compln in
+            switch compln {
+                case .finished:
+                    expectation.fulfill()
+                case .failure(let msg):
+                    XCTFail(msg.localizedDescription)
+            }
+            
+        }, receiveValue: { decodedResponse in
+            XCTAssertNotNil(decodedResponse)
+            XCTAssertTrue(decodedResponse.completed)
+        })
+        XCTAssertNotNil(cancellable)
+        wait(for: [expectation], timeout: 5.0)
+        
     }
 
 }
