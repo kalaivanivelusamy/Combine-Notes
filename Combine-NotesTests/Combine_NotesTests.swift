@@ -13,11 +13,13 @@ import Combine
 class Combine_NotesTests: XCTestCase {
     
     let testUrlString = "https://jsonplaceholder.typicode.com/todos/10"
-
+    
     var testURL: URL?
     
     var myBackgroundQueue: DispatchQueue?
-
+    
+    let test404UrlString = "https://barkshin.herokuapp.com/missing"
+    
     
     fileprivate struct TodoTask: Decodable,Hashable {
         let userId: Int
@@ -34,18 +36,18 @@ class Combine_NotesTests: XCTestCase {
     override func setUpWithError() throws {
         self.testURL = URL(string: testUrlString)
         self.myBackgroundQueue = DispatchQueue(label: "UsingCombineNotes")
-
+        
     }
-
+    
     override func tearDownWithError() throws {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
-
+    
     func testExample() throws {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
-
+    
     func testPerformanceExample() throws {
         // This is an example of a performance test case.
         self.measure {
@@ -69,7 +71,7 @@ class Combine_NotesTests: XCTestCase {
             }, receiveValue: { (data,response) in
                 XCTAssertNotNil(data)
             })
-    
+        
         XCTAssertNotNil(remoteDataPublisher)
         wait(for: [expectation], timeout: 5.0)
     }
@@ -116,7 +118,7 @@ class Combine_NotesTests: XCTestCase {
             .eraseToAnyPublisher()
         
         XCTAssertNotNil(taskPub)
-
+        
         let cancellable = taskPub.sink(receiveCompletion: { compln in
             switch compln {
                 case .finished:
@@ -150,7 +152,7 @@ class Combine_NotesTests: XCTestCase {
             .eraseToAnyPublisher()
         
         XCTAssertNotNil(taskpub)
-
+        
         let cancellable = taskpub.sink(receiveCompletion: { compln in
             switch compln {
                 case .finished:
@@ -167,5 +169,33 @@ class Combine_NotesTests: XCTestCase {
         wait(for: [expectation], timeout: 5.0)
         
     }
-
+    
+    func testURL404NotFound() {
+        
+        let expectation = XCTestExpectation(description: "URL not found")
+        let taskPublisher = URLSession.shared.dataTaskPublisher(for: URL(string: test404UrlString)!)
+            .sink(receiveCompletion: {compln in
+                switch compln {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        print("Received error \(error)")
+                }
+                expectation.fulfill()
+            }, receiveValue: { data , response in
+                guard let response = response as? HTTPURLResponse else{
+                    XCTFail("unable to parse response")
+                    return
+                }
+                
+                let stringData = String(data: data, encoding: .utf8)
+                print(".sink data received \(data) as \(String(describing: stringData))")
+                print("http response received \(response)")
+            })
+        XCTAssertNotNil(taskPublisher)
+        wait(for: [expectation], timeout: 5.0)
+        
+    }
+    
+    
 }
