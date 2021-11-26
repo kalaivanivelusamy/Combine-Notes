@@ -197,5 +197,38 @@ class Combine_NotesTests: XCTestCase {
         
     }
     
+    func testMax() {
+        
+        let passSubj = PassthroughSubject<Int,Error>()
+        var latestReceivedValue: Int?
+        let cancellable = passSubj
+            .max()
+            .sink(receiveCompletion: { compln in
+                switch compln {
+                    case .finished:
+                        break
+                    case .failure(let anError):
+                        print("Received Error \(anError)")
+                        break
+                }
+                
+            }, receiveValue: { responseValue in
+                print(".sink() data received \(responseValue)")
+                latestReceivedValue = responseValue
+            })
+        passSubj.send(1)
+        XCTAssertNil(latestReceivedValue)
+        passSubj.send(2)
+        XCTAssertNil(latestReceivedValue)
+        passSubj.send(completion: Subscribers.Completion.finished)
+        XCTAssertEqual(latestReceivedValue, 2)
+        passSubj.send(3)
+        print("latest value \(latestReceivedValue)")
+        XCTAssertEqual(latestReceivedValue, 2)
+        XCTAssertNotNil(cancellable)
+
+        
+    }
+    
     
 }
