@@ -223,11 +223,48 @@ class Combine_NotesTests: XCTestCase {
         passSubj.send(completion: Subscribers.Completion.finished)
         XCTAssertEqual(latestReceivedValue, 2)
         passSubj.send(3)
-        print("latest value \(latestReceivedValue)")
+        print("latest value \(latestReceivedValue!)")
         XCTAssertEqual(latestReceivedValue, 2)
         XCTAssertNotNil(cancellable)
 
+    }
+    
+    struct ExampleStruct{
+        var property1: Int
+        var property2: Int?
+    }
+    
+    func testMaxWithClosure() {
         
+        let passSubj = PassthroughSubject<ExampleStruct,Error>()
+        var latestValue: ExampleStruct?
+        
+        let cancellable = passSubj
+            .max{ (struct1, struct2) -> Bool in 
+                return struct1.property1 < struct2.property1
+            }
+            .sink(receiveCompletion: { compln in 
+                switch compln {
+                    case .finished:
+                        break
+                    case .failure(let err):
+                        print("Error caused \(err)")
+                        break
+                }
+            }, receiveValue: { value in
+                print(".sink received value")
+                latestValue = value
+            })
+        
+        passSubj.send(ExampleStruct(property1: 12, property2: 2))
+        XCTAssertNil(latestValue)
+        passSubj.send(ExampleStruct(property1: 2, property2: 23))
+        XCTAssertNil(latestValue)
+        passSubj.send(completion: Subscribers.Completion.finished)
+        XCTAssertEqual(latestValue?.property1, 12)
+        XCTAssertEqual(latestValue?.property2, 2)
+        XCTAssertNotNil(cancellable)
+
     }
     
     
