@@ -55,6 +55,29 @@ class Combine_NotesTests: XCTestCase {
         }
     }
     
+    func testEmptyPublisher() {
+        let expectation = XCTestExpectation(description: self.debugDescription)
+        let cancellable = Empty<String,Never>()
+            .sink(receiveCompletion: { compln in
+                print(".sink received completion")
+                switch compln {
+                    case .finished:
+                        expectation.fulfill()
+                        break
+                    case .failure(let anErr):
+                        print("Received error \(anErr)")
+                        XCTFail("No failure should be received from empty")
+                        
+                }
+                
+            }, receiveValue: { resp in
+                XCTFail("No value should be received from empty publisher")
+            })
+        
+        wait(for: [expectation], timeout: 5.0)
+        XCTAssertNotNil(cancellable)
+    }
+    
     func testDataTaskPublisher() {
         
         let expectation = XCTestExpectation(description: "Fetching from url \(String(describing: testUrlString))")
